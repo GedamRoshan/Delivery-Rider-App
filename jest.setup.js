@@ -60,6 +60,45 @@ jest.mock('react-native-background-actions', () => ({
   updateNotification: jest.fn(() => Promise.resolve()),
 }));
 
+// Mock @react-native-firebase/auth & app
+const mockAuthInstance = {
+  signInWithEmailAndPassword: jest.fn(() =>
+    Promise.resolve({
+      user: { uid: 'rider_test_1', email: 'rider@delivery.com' },
+    })
+  ),
+  createUserWithEmailAndPassword: jest.fn(() =>
+    Promise.resolve({
+      user: { uid: 'rider_test_1', email: 'rider@delivery.com' },
+    })
+  ),
+  signOut: jest.fn(() => Promise.resolve()),
+  onAuthStateChanged: jest.fn(cb => {
+    cb(null);
+    return () => {};
+  }),
+  currentUser: null,
+};
+
+jest.mock('@react-native-firebase/auth', () => {
+  const authFn = () => mockAuthInstance;
+  return {
+    __esModule: true,
+    default: authFn,
+    getAuth: jest.fn(() => mockAuthInstance),
+    signInWithEmailAndPassword: jest.fn((auth, email, pass) =>
+      mockAuthInstance.signInWithEmailAndPassword(email, pass)
+    ),
+    createUserWithEmailAndPassword: jest.fn((auth, email, pass) =>
+      mockAuthInstance.createUserWithEmailAndPassword(email, pass)
+    ),
+    signOut: jest.fn(auth => mockAuthInstance.signOut()),
+    onAuthStateChanged: jest.fn((auth, cb) => mockAuthInstance.onAuthStateChanged(cb)),
+  };
+});
+
+jest.mock('@react-native-firebase/app', () => ({}));
+
 // Mock Firebase Modular SDK
 jest.mock('firebase/app', () => ({
   initializeApp: jest.fn(() => ({})),

@@ -21,8 +21,12 @@ export function useAuth() {
     return AuthService.login(email, pass);
   }, []);
 
+  const signup = useCallback(async (email: string, pass: string) => {
+    return AuthService.signup(email, pass);
+  }, []);
+
   const signUp = useCallback(async (email: string, pass: string) => {
-    return AuthService.signUp(email, pass);
+    return AuthService.signup(email, pass);
   }, []);
 
   const logout = useCallback(async () => {
@@ -33,6 +37,7 @@ export function useAuth() {
     user,
     loading,
     login,
+    signup,
     signUp,
     logout,
   };

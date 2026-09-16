@@ -295,3 +295,4 @@ npm run ios
 - [x] **Offline Resilience**: Durable AsyncStorage queue, NetInfo auto-sync on reconnect, RFC4122 UUID idempotency, zero duplicate entries.
 - [x] **Home Screen Waypoint List**: Live Firestore `onSnapshot` listener, timestamp, lat/lng, distance from previous point, loading/empty/error states, pull-to-refresh.
 - [x] **No Paid SDKs**: Free of proprietary commercial licenses.
+# Delivery-Rider-App

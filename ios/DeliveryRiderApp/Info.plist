@@ -35,7 +35,17 @@
 		<true/>
 	</dict>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string></string>
+	<string>DeliveryRiderApp requires your location while on duty to log your delivery routes.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>DeliveryRiderApp needs continuous location access while on duty to track delivery distance even when the app is minimized or your phone is locked.</string>
+	<key>NSLocationAlwaysUsageDescription</key>
+	<string>DeliveryRiderApp needs continuous location access to track delivery distance in the background.</string>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>location</string>
+		<string>fetch</string>
+		<string>processing</string>
+	</array>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
 	<key>UIRequiredDeviceCapabilities</key>

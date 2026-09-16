@@ -1,6 +1,7 @@
 import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
 import * as FirebaseAuth from 'firebase/auth';
 import { getFirestore, Firestore } from 'firebase/firestore';
+import { getDatabase, Database } from 'firebase/database';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 type Auth = FirebaseAuth.Auth;
@@ -21,6 +22,7 @@ export const FIREBASE_CONFIG = {
   storageBucket: 'delivery-rider-app-415b7.firebasestorage.app',
   messagingSenderId: '85256601097',
   appId: '1:85256601097:android:3d6168cc12a624d33482d8',
+  databaseURL: 'https://delivery-rider-app-415b7-default-rtdb.asia-southeast1.firebasedatabase.app',
 };
 
 // Check if credentials are set to placeholder values
@@ -35,6 +37,7 @@ export const isUsingPlaceholderCredentials = (): boolean => {
 let app: FirebaseApp;
 let auth: Auth;
 let db: Firestore;
+let rtdb: Database;
 
 try {
   if (getApps().length === 0) {
@@ -49,6 +52,7 @@ try {
     auth = app.auth?.() || initializeAuth(app, { persistence: getReactNativePersistence(AsyncStorage) });
   }
   db = getFirestore(app);
+  rtdb = getDatabase(app);
 } catch (error) {
   console.warn('[FirebaseConfig] Initialization warning:', error);
   // Fallback safe initialization if already initialized
@@ -63,6 +67,7 @@ try {
     auth = (app as any).auth;
   }
   db = getFirestore(app);
+  rtdb = getDatabase(app);
 }
 
-export { app, auth, db };
+export { app, auth, db, rtdb };

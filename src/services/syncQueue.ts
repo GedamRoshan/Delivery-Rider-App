@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import NetInfo, { NetInfoState } from '@react-native-community/netinfo';
-import { doc, setDoc } from 'firebase/firestore';
-import { db, isUsingPlaceholderCredentials } from '../config/firebaseConfig';
+import { ref, set } from 'firebase/database';
+import { rtdb } from '../config/firebaseConfig';
 import { LocationLogEntry } from '../types';
 
 export const OFFLINE_QUEUE_STORAGE_KEY = '@delivery_rider_offline_queue';
@@ -131,12 +131,13 @@ export class SyncQueueService {
       console.error('[SyncQueue] Error enqueueing location log:', e);
     }
 
+    console.log(`📦 [SyncQueue] Enqueued log ID: ${entry.id} (Rider: ${entry.riderId}, Lat: ${entry.latitude.toFixed(4)}, Lng: ${entry.longitude.toFixed(4)}). isOnline: ${this.isOnline}`);
     await this.notifyListeners();
 
     // Trigger flush if currently online
     if (this.isOnline) {
       this.flushQueue().catch(err => {
-        console.warn('[SyncQueue] Background flush failed:', err);
+        console.warn('⚠️ [SyncQueue] Background flush warning:', err);
       });
     }
 
@@ -162,34 +163,35 @@ export class SyncQueueService {
         return 0;
       }
 
-      console.log(`[SyncQueue] Beginning flush of ${queue.length} items...`);
+      console.log(`\n☁️ [SyncQueue] Beginning flush of ${queue.length} items to Realtime Database...`);
       const remainingQueue: LocationLogEntry[] = [];
 
       for (const item of queue) {
         try {
-          if (!isUsingPlaceholderCredentials()) {
-            // Write to Firestore with idempotent setDoc using item.id as document key
-            const logDocRef = doc(db, 'location_logs', item.id);
-            await setDoc(logDocRef, {
-              ...item,
-              synced: true,
-              syncedAt: Date.now(),
-            }, { merge: true });
-          }
+          console.log(`☁️ [RTDB Write] Uploading log ${item.id} to location_logs/${item.riderId}/${item.id}...`);
+          const logRef = ref(rtdb, `location_logs/${item.riderId}/${item.id}`);
+          await set(logRef, {
+            ...item,
+            synced: true,
+            syncedAt: Date.now(),
+          });
+
+          console.log(`✅ [RTDB Write SUCCESS] Log location_logs/${item.riderId}/${item.id} saved to Cloud!`);
 
           // Persist to local confirmed cache so UI shows immediately
           await this.saveToConfirmedCache({ ...item, synced: true });
           syncedCount++;
         } catch (itemErr: any) {
-          console.warn(`[SyncQueue] Failed uploading log ${item.id}:`, itemErr.message);
-          // If in demo/placeholder mode, mark synced locally
-          if (isUsingPlaceholderCredentials()) {
-            await this.saveToConfirmedCache({ ...item, synced: true });
-            syncedCount++;
-          } else {
-            // Keep in queue for next retry
-            remainingQueue.push(item);
-          }
+          console.error(
+            '\n🚨 ================= [REALTIME DATABASE WRITE ERROR] ================\n' +
+            `❌ Failed Document ID : ${item.id}\n` +
+            `❌ Error Code         : ${itemErr?.code || 'UNKNOWN'}\n` +
+            `❌ Error Message      : ${itemErr?.message || itemErr}\n` +
+            '====================================================================\n'
+          );
+          console.log('[RTDB Error Object]:', itemErr);
+          // Keep in queue for retry on network restoration
+          remainingQueue.push(item);
         }
       }
 
@@ -199,8 +201,15 @@ export class SyncQueueService {
       );
 
       console.log(`[SyncQueue] Flush complete: ${syncedCount} synced, ${remainingQueue.length} remaining.`);
-    } catch (err) {
-      console.error('[SyncQueue] Flush queue fatal error:', err);
+    } catch (err: any) {
+      console.error(
+        '\n🚨 ================= [RTDB FLUSH FATAL ERROR] ================\n' +
+        `❌ Error Code    : ${err?.code || 'UNKNOWN'}\n` +
+        `❌ Error Message : ${err?.message || err}\n` +
+        `❌ Error Stack   : ${err?.stack || 'N/A'}\n` +
+        '================================================================\n'
+      );
+      console.log('[RTDB Flush Fatal Details]:', err);
     } finally {
       this.isFlushing = false;
       await this.notifyListeners();

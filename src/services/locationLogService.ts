@@ -1,28 +1,26 @@
 import {
-  collection,
+  ref,
+  onValue,
+  get,
   query,
-  where,
-  orderBy,
-  limit,
-  onSnapshot,
-  getDocs,
+  limitToLast,
   Unsubscribe,
-} from 'firebase/firestore';
-import { db, isUsingPlaceholderCredentials } from '../config/firebaseConfig';
+} from 'firebase/database';
 import { LocationLogEntry } from '../types';
 import { SyncQueueService } from './syncQueue';
+import { rtdb, isUsingPlaceholderCredentials } from '../config/firebaseConfig';
 
 export class LocationLogService {
   /**
    * Subscribes to real-time location log stream for the current rider.
-   * Merges confirmed Firestore logs with pending offline queue items.
+   * Merges confirmed Realtime Database logs with pending offline queue items.
    */
   public static subscribeRiderLogs(
     riderId: string,
     onLogsUpdated: (logs: LocationLogEntry[]) => void,
     onError: (error: Error) => void
   ): Unsubscribe {
-    let firestoreUnsubscribe: Unsubscribe = () => {};
+    let databaseUnsubscribe: Unsubscribe = () => {};
 
     // Helper to combine confirmed logs and pending offline queue
     const combineAndEmit = async (confirmedLogs: LocationLogEntry[]) => {
@@ -71,30 +69,35 @@ export class LocationLogService {
     }
 
     try {
-      const q = query(
-        collection(db, 'location_logs'),
-        where('riderId', '==', riderId),
-        orderBy('timestamp', 'desc'),
-        limit(100)
-      );
+      console.log(`👂 [RTDB Listener] Subscribing to location_logs/${riderId}...`);
+      const riderLogsRef = ref(rtdb, `location_logs/${riderId}`);
+      const q = query(riderLogsRef, limitToLast(100));
 
-      firestoreUnsubscribe = onSnapshot(
+      databaseUnsubscribe = onValue(
         q,
         snapshot => {
           const remoteLogs: LocationLogEntry[] = [];
-          snapshot.forEach(docSnap => {
-            const data = docSnap.data();
-            remoteLogs.push({
-              id: docSnap.id,
-              riderId: data.riderId,
-              latitude: data.latitude,
-              longitude: data.longitude,
-              timestamp: data.timestamp,
-              distanceMoved: data.distanceMoved ?? 0,
-              accuracy: data.accuracy,
-              synced: true,
+          if (snapshot.exists()) {
+            snapshot.forEach(childSnap => {
+              const data = childSnap.val();
+              if (data) {
+                remoteLogs.push({
+                  id: childSnap.key || data.id,
+                  riderId: data.riderId || riderId,
+                  latitude: data.latitude,
+                  longitude: data.longitude,
+                  timestamp: data.timestamp,
+                  distanceMoved: data.distanceMoved ?? 0,
+                  accuracy: data.accuracy,
+                  synced: true,
+                });
+              }
             });
-          });
+          }
+
+          // Reverse chronological order (most recent first)
+          remoteLogs.sort((a, b) => b.timestamp - a.timestamp);
+          console.log(`📥 [RTDB onValue] Received ${remoteLogs.length} logs for rider: ${riderId}`);
 
           // Save to local cache for offline resilience
           for (const item of remoteLogs) {
@@ -104,7 +107,14 @@ export class LocationLogService {
           combineAndEmit(remoteLogs);
         },
         async error => {
-          console.warn('[LocationLogService] Firestore onSnapshot warning:', error.message);
+          console.error(
+            '\n🚨 ================= [RTDB onValue ERROR] ================\n' +
+            `❌ Rider ID      : ${riderId}\n` +
+            `❌ Error Code    : ${(error as any)?.code || 'UNKNOWN'}\n` +
+            `❌ Error Message : ${error?.message || error}\n` +
+            '==========================================================\n'
+          );
+          console.log('[RTDB onValue Error Details]:', error);
           // Fall back to local storage cache so user never sees empty screen
           const cached = await SyncQueueService.getConfirmedCache(riderId);
           combineAndEmit(cached);
@@ -112,7 +122,14 @@ export class LocationLogService {
         }
       );
     } catch (e: any) {
-      console.warn('[LocationLogService] Firestore query init error:', e);
+      console.error(
+        '\n🚨 ================ [RTDB QUERY INIT ERROR] ================\n' +
+        `❌ Rider ID      : ${riderId}\n` +
+        `❌ Error Code    : ${e?.code || 'UNKNOWN'}\n` +
+        `❌ Error Message : ${e?.message || e}\n` +
+        '============================================================\n'
+      );
+      console.log('[RTDB Query Init Error Details]:', e);
       SyncQueueService.getConfirmedCache(riderId).then(cached => {
         combineAndEmit(cached);
       });
@@ -127,7 +144,7 @@ export class LocationLogService {
     });
 
     return () => {
-      firestoreUnsubscribe();
+      databaseUnsubscribe();
       unsubQueue();
     };
   }
@@ -144,32 +161,43 @@ export class LocationLogService {
     }
 
     try {
-      const q = query(
-        collection(db, 'location_logs'),
-        where('riderId', '==', riderId),
-        orderBy('timestamp', 'desc'),
-        limit(100)
-      );
+      console.log(`🔄 [RTDB fetchRiderLogs] Fetching logs for rider ${riderId}...`);
+      const riderLogsRef = ref(rtdb, `location_logs/${riderId}`);
+      const q = query(riderLogsRef, limitToLast(100));
 
-      const snapshot = await getDocs(q);
+      const snapshot = await get(q);
       const logs: LocationLogEntry[] = [];
-      snapshot.forEach(docSnap => {
-        const data = docSnap.data();
-        logs.push({
-          id: docSnap.id,
-          riderId: data.riderId,
-          latitude: data.latitude,
-          longitude: data.longitude,
-          timestamp: data.timestamp,
-          distanceMoved: data.distanceMoved ?? 0,
-          accuracy: data.accuracy,
-          synced: true,
-        });
-      });
 
+      if (snapshot.exists()) {
+        snapshot.forEach(childSnap => {
+          const data = childSnap.val();
+          if (data) {
+            logs.push({
+              id: childSnap.key || data.id,
+              riderId: data.riderId || riderId,
+              latitude: data.latitude,
+              longitude: data.longitude,
+              timestamp: data.timestamp,
+              distanceMoved: data.distanceMoved ?? 0,
+              accuracy: data.accuracy,
+              synced: true,
+            });
+          }
+        });
+      }
+
+      logs.sort((a, b) => b.timestamp - a.timestamp);
+      console.log(`✅ [RTDB fetchRiderLogs] Fetched ${logs.length} logs for rider ${riderId}`);
       return logs;
-    } catch (err) {
-      console.warn('[LocationLogService] Manual fetch error, falling back to cache:', err);
+    } catch (err: any) {
+      console.error(
+        '\n🚨 ================= [RTDB FETCH LOGS ERROR] ================\n' +
+        `❌ Rider ID      : ${riderId}\n` +
+        `❌ Error Code    : ${err?.code || 'UNKNOWN'}\n` +
+        `❌ Error Message : ${err?.message || err}\n` +
+        '============================================================\n'
+      );
+      console.log('[RTDB Fetch Logs Error Details]:', err);
       return SyncQueueService.getConfirmedCache(riderId);
     }
   }

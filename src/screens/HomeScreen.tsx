@@ -51,12 +51,18 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ user, onLogout }) => {
   }, [isOnDuty]);
 
   const handleDutyToggle = async (val: boolean) => {
+    console.log(`\n🔄 [HomeScreen] Rider clicked Duty switch -> ${val ? 'ON DUTY' : 'OFF DUTY'}`);
     if (val) {
-      // Check permissions first; if not granted, show educational rationale modal
+      // Check permissions first; if foreground not granted, show modal
       const status = await PermissionService.checkPermissions();
-      if (!status.hasBackground) {
+      console.log('🛡️ [HomeScreen] Current Permission status:', status);
+      if (!status.hasForeground) {
+        console.log('⚠️ [HomeScreen] Foreground location permission missing, showing modal.');
         setShowPermissionModal(true);
         return;
+      }
+      if (!status.hasBackground) {
+        console.warn('⚠️ [HomeScreen] Background location not granted yet ("Allow all the time"). Tracking will run in foreground.');
       }
     }
     toggleDuty(val);

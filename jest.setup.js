@@ -99,6 +99,29 @@ jest.mock('@react-native-firebase/auth', () => {
 
 jest.mock('@react-native-firebase/app', () => ({}));
 
+// Mock @react-native-firebase/firestore
+const mockFirestoreInstance = {};
+jest.mock('@react-native-firebase/firestore', () => {
+  const firestoreFn = () => mockFirestoreInstance;
+  return {
+    __esModule: true,
+    default: firestoreFn,
+    getFirestore: jest.fn(() => mockFirestoreInstance),
+    doc: jest.fn((parent, path) => ({ id: path, path })),
+    collection: jest.fn((parent, path) => ({ path })),
+    setDoc: jest.fn(() => Promise.resolve()),
+    query: jest.fn(() => ({})),
+    where: jest.fn(() => ({})),
+    orderBy: jest.fn(() => ({})),
+    limit: jest.fn(() => ({})),
+    onSnapshot: jest.fn((q, cb) => {
+      cb({ forEach: () => {} });
+      return () => {};
+    }),
+    getDocs: jest.fn(() => Promise.resolve({ forEach: () => {} })),
+  };
+});
+
 // Mock Firebase Modular SDK
 jest.mock('firebase/app', () => ({
   initializeApp: jest.fn(() => ({})),
@@ -142,4 +165,17 @@ jest.mock('firebase/firestore', () => ({
     return () => {};
   }),
   getDocs: jest.fn(() => Promise.resolve({ forEach: () => {} })),
+}));
+
+jest.mock('firebase/database', () => ({
+  getDatabase: jest.fn(() => ({})),
+  ref: jest.fn((db, path) => ({ path })),
+  set: jest.fn(() => Promise.resolve()),
+  get: jest.fn(() => Promise.resolve({ exists: () => false, forEach: () => {} })),
+  query: jest.fn(() => ({})),
+  limitToLast: jest.fn(() => ({})),
+  onValue: jest.fn((q, cb) => {
+    cb({ exists: () => false, forEach: () => {} });
+    return () => {};
+  }),
 }));

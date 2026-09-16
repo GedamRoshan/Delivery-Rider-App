@@ -42,12 +42,16 @@ export class BackgroundLocationService {
   }
 
   /**
-   * Promisified current GPS location fix
+   * Promisified current GPS location fix with high/low accuracy fallback
    */
   public static getCurrentGPSFix(): Promise<LocationPoint> {
     return new Promise((resolve, reject) => {
+      console.log('📡 [GPS] Requesting location fix...');
       Geolocation.getCurrentPosition(
         position => {
+          console.log(
+            `📍 [GPS Fix OK] Lat: ${position.coords.latitude.toFixed(6)}, Lng: ${position.coords.longitude.toFixed(6)}, Accuracy: ${position.coords.accuracy?.toFixed(1) || '?'}m`
+          );
           resolve({
             latitude: position.coords.latitude,
             longitude: position.coords.longitude,
@@ -59,12 +63,43 @@ export class BackgroundLocationService {
           });
         },
         error => {
-          reject(error);
+          console.warn('⚠️ [GPS] High accuracy fix failed (satellite timeout or indoor). Retrying with network/low accuracy...', error?.message || error);
+          Geolocation.getCurrentPosition(
+            fallbackPos => {
+              console.log(
+                `📍 [GPS Fallback Fix OK] Lat: ${fallbackPos.coords.latitude.toFixed(6)}, Lng: ${fallbackPos.coords.longitude.toFixed(6)}, Accuracy: ${fallbackPos.coords.accuracy?.toFixed(1) || '?'}m`
+              );
+              resolve({
+                latitude: fallbackPos.coords.latitude,
+                longitude: fallbackPos.coords.longitude,
+                accuracy: fallbackPos.coords.accuracy,
+                altitude: fallbackPos.coords.altitude,
+                heading: fallbackPos.coords.heading,
+                speed: fallbackPos.coords.speed,
+                timestamp: fallbackPos.timestamp || Date.now(),
+              });
+            },
+            fallbackErr => {
+              console.error(
+                '\n🚨 ====================== [GPS FIX FAILED] ======================\n' +
+                `❌ Message : ${fallbackErr?.message || fallbackErr}\n` +
+                `❌ Code    : ${fallbackErr?.code} (1=PERMISSION_DENIED, 2=POSITION_UNAVAILABLE, 3=TIMEOUT)\n` +
+                '💡 Tip     : Make sure Location/GPS is ON on device/emulator.\n' +
+                '=================================================================\n'
+              );
+              reject(fallbackErr);
+            },
+            {
+              enableHighAccuracy: false,
+              timeout: 10000,
+              maximumAge: 15000,
+            }
+          );
         },
         {
           enableHighAccuracy: true,
-          timeout: 9000,
-          maximumAge: 2000,
+          timeout: 8000,
+          maximumAge: 5000,
         }
       );
     });
@@ -78,7 +113,7 @@ export class BackgroundLocationService {
     const riderId = taskDataArguments?.riderId || BackgroundLocationService.currentRiderId;
     const intervalMs = taskDataArguments?.delay || 10000;
 
-    console.log(`[BackgroundLocation] Service loop started for rider: ${riderId}, interval: ${intervalMs}ms`);
+    console.log(`\n🚀 [BackgroundLocation] Service loop started for rider: ${riderId}, interval: ${intervalMs}ms`);
 
     while (BackgroundActions.isRunning()) {
       try {
@@ -103,7 +138,7 @@ export class BackgroundLocationService {
 
         if (evaluation.shouldSave) {
           console.log(
-            `[BackgroundLocation] 30m Threshold MET (+${evaluation.distance.toFixed(1)}m). Saving log...`
+            `🚀 [BackgroundLocation] Threshold MET (${evaluation.reason}, +${evaluation.distance.toFixed(1)}m). Enqueueing log for Firebase sync...`
           );
 
           // Update last saved baseline
@@ -129,13 +164,13 @@ export class BackgroundLocationService {
           }
         } else {
           console.log(
-            `[BackgroundLocation] Threshold not met (+${evaluation.distance.toFixed(1)}m < 30m). Skipping write.`
+            `ℹ️ [BackgroundLocation] Movement: +${evaluation.distance.toFixed(1)}m (< 30m threshold). Skipped save to conserve writes. Move >=30m for next log.`
           );
         }
 
         BackgroundLocationService.emitMetrics();
       } catch (fixError: any) {
-        console.warn('[BackgroundLocation] GPS fix failed in background loop:', fixError.message || fixError);
+        console.warn('⚠️ [BackgroundLocation] GPS fix warning in loop:', fixError.message || fixError);
       }
 
       // Strict 10-second polling cadence
@@ -224,11 +259,12 @@ export class BackgroundLocationService {
 
   private static startForegroundFallback(riderId: string): void {
     if (this.foregroundIntervalId) return;
+    console.log(`\n🚀 [BackgroundLocation] Starting foreground fallback loop for rider: ${riderId}`);
     this.isRunning = true;
     this.metrics.isBackgroundRunning = true;
     this.emitMetrics();
 
-    this.foregroundIntervalId = setInterval(async () => {
+    const executeTick = async () => {
       try {
         const point = await this.getCurrentGPSFix();
         const currentCoord: Coordinates = {
@@ -242,6 +278,9 @@ export class BackgroundLocationService {
         this.metrics.lastDistanceDelta = evaluation.distance;
 
         if (evaluation.shouldSave) {
+          console.log(
+            `🚀 [Foreground Fallback] Threshold MET (${evaluation.reason}, +${evaluation.distance.toFixed(1)}m). Enqueueing log for Firebase...`
+          );
           this.lastSavedPoint = currentCoord;
           this.metrics.totalDistanceMeters += evaluation.distance;
           this.metrics.savedPointsCount += 1;
@@ -254,12 +293,20 @@ export class BackgroundLocationService {
             distanceMoved: Math.round(evaluation.distance * 10) / 10,
             accuracy: point.accuracy,
           });
+        } else {
+          console.log(
+            `ℹ️ [Foreground Fallback] Movement: +${evaluation.distance.toFixed(1)}m (< 30m). Move at least 30m to trigger next Firestore write.`
+          );
         }
         this.emitMetrics();
-      } catch (e) {
-        // GPS poll error
+      } catch (e: any) {
+        console.warn('⚠️ [Foreground Fallback] Tick warning:', e?.message || e);
       }
-    }, 10000);
+    };
+
+    // Execute first tick immediately
+    executeTick();
+    this.foregroundIntervalId = setInterval(executeTick, 10000);
   }
 
   /**

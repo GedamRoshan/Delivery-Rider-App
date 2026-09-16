@@ -10,7 +10,7 @@ This application is engineered for commercial delivery riders who require reliab
 1. **Continuous 10-Second Background Polling**: Survives app minimization, screen locking, and OS task management without relying on paid commercial SDKs.
 2. **Great-Circle Haversine Distance Filter**: Strict $\ge 30\text{m}$ movement threshold evaluated on every 10s fix; sub-30m jitter/drift is skipped to save network bandwidth and Firebase write costs.
 3. **Offline Resilience & Idempotent Sync**: Offline fixes are persisted to durable storage and automatically flushed upon network restoration with zero duplicate entries.
-4. **Firebase Real-Time Ecosystem**: Cleanly decoupled Auth (`onAuthStateChanged` session persistence) and Firestore real-time snapshots (`onSnapshot`) with offline cache fallback.
+4. **Firebase Real-Time Ecosystem**: Cleanly decoupled Auth (`onAuthStateChanged` session persistence) and Realtime Database live listeners (`onValue`) with offline cache fallback.
 
 ### High-Level Architecture
 
@@ -24,8 +24,8 @@ This application is engineered for commercial delivery riders who require reliab
                    |                             |                             |
        +-----------v-----------+    +------------v------------+    +-----------v-----------+
        |   PermissionService   |    | BackgroundLocationServ. |    |  LocationLogService   |
-       |  - Foreground First   |    |  - RNBackgroundActions  |    |  - Realtime Firestore |
-       |  - Android 10/11/13/14|    |  - 10s Polling Loop     |    |  - onSnapshot + Cache |
+       |  - Foreground First   |    |  - RNBackgroundActions  |    |  - Realtime Database  |
+       |  - Android 10/11/13/14|    |  - 10s Polling Loop     |    |  - onValue + Cache    |
        |  - iOS Always Rationale|   |  - Native Geolocation   |    |  - Pull-to-Refresh    |
        +-----------------------+    +------------+------------+    +-----------^-----------+
                                                  |                             |
@@ -42,8 +42,8 @@ This application is engineered for commercial delivery riders who require reliab
                                     +------------+------------+
                                                  |
                                     +------------v------------+
-                                    |   Firebase Firestore    |
-                                    | (doc ID = RFC4122 UUID) |
+                                    | Firebase Realtime DB    |
+                                    | (location_logs/$rider)  |
                                     +-------------------------+
 ```
 
@@ -72,13 +72,13 @@ DeliveryRiderApp/
 │   ├── services/
 │   │   ├── authService.ts         # Firebase Auth, session persistence, demo fallback
 │   │   ├── backgroundLocation.ts  # Background task orchestration (10s cadence, Android service)
-│   │   ├── locationLogService.ts  # Live Firestore subscription, offline cache, manual refresh
+│   │   ├── locationLogService.ts  # Live Realtime Database subscription, offline cache, manual refresh
 │   │   ├── permissionService.ts   # Sequential Android/iOS permission workflows & rationale
 │   │   └── syncQueue.ts           # Durable queue, NetInfo auto-sync, idempotent flush
 │   ├── hooks/
 │   │   ├── useAuth.ts             # Auth lifecycle hook
 │   │   ├── useDutyTracking.ts     # Duty switch state and live telemetry metrics hook
-│   │   └── useLocationLogs.ts     # Firestore real-time listener & queue state hook
+│   │   └── useLocationLogs.ts     # Realtime Database live listener & queue state hook
 │   ├── components/
 │   │   ├── LocationCard.tsx       # Live telemetry card (10s status, current coords, 30m delta)
 │   │   ├── LogItem.tsx            # Chronological waypoint item with delta pill & sync badge
@@ -161,21 +161,21 @@ A delivery rider frequently enters underground garages, elevators, and cellular 
                      /                   \
               (Online)                   (Offline)
                  |                           |
-        [Write to Firestore]        [Enqueue in AsyncStorage]
+        [Write to Realtime DB]      [Enqueue in AsyncStorage]
                  |                           |
                  v                           v
         [Confirmed Cache]           [Wait for Reconnection]
                                              |
                                     [NetInfo Trigger]
                                              |
-                                    [Flush Queue to Firestore]
+                                    [Flush Queue to Realtime DB]
 ```
 
 ### Idempotency & Deduplication
 To guarantee **zero duplicate entries** and **zero lost entries**:
 1. Every qualifying location point generates a **deterministic RFC4122 v4 UUID** at creation time.
-2. When flushing to Firestore, writes use `setDoc(doc(db, 'location_logs', item.id), item, { merge: true })` instead of auto-generated Firestore document IDs (`addDoc`).
-3. If a network packet is dropped or retry occurs, the exact same document ID is addressed idempotently in Firestore.
+2. When syncing to Realtime Database, writes use `set(ref(rtdb, \`location_logs/\${riderId}/\${item.id}\`), item)` addressing the unique UUID key.
+3. If a network packet is dropped or retry occurs, the exact same key is overwritten idempotently with identical data.
 4. A mutex lock (`isFlushing`) prevents concurrent duplicate flush execution.
 5. Successfully flushed items are removed from AsyncStorage atomically.
 
@@ -209,7 +209,7 @@ Mobile OS vendors enforce strict, non-linear location permission policies:
 | **Android Doze Mode & Battery Optimization** | Android suspends background network and CPU tasks when the phone is unplugged with the screen off. | Implemented an Android **Foreground Service** (`RNBackgroundActionsTask`) with `foregroundServiceType="location"` and a visible notification channel. Foreground services are exempt from aggressive Doze restrictions. |
 | **Android 14 Foreground Service Restrictions** | Android 14 crashes apps that start location foreground services without declaring `android:foregroundServiceType="location"` in `AndroidManifest.xml`. | Explicitly configured `<service android:foregroundServiceType="location" />` in `AndroidManifest.xml`. |
 | **iOS CoreLocation Background Throttling** | iOS pauses location updates if accuracy degrades or the app stays in the background without explicit capability flags. | Configured `UIBackgroundModes` with `location`, `fetch`, and `processing`, and enabled `enableBackgroundLocationUpdates: true` on native geolocation. |
-| **Firestore Offline Query Limitations** | In disconnected states, standard Firestore listeners can throw network errors if offline persistence is not configured. | Paired Firebase modular auth with `@react-native-async-storage/async-storage` and implemented a local confirmed cache in `SyncQueueService`. Even in flight mode, all previously saved and queued points render immediately. |
+| **Offline Sync Reliability** | In disconnected states, cloud listeners can throw network errors if offline persistence is not handled. | Paired Firebase modular auth with `@react-native-async-storage/async-storage` and implemented a local confirmed cache in `SyncQueueService`. Even in flight mode, all previously saved and queued points render immediately. |
 
 ---
 
@@ -226,7 +226,7 @@ If a reviewer runs the app without setting up their own Firebase project, the ap
 To connect your own Firebase project:
 1. Go to [Firebase Console](https://console.firebase.google.com/) and create a project.
 2. Enable **Email/Password Authentication** in Authentication $\rightarrow$ Sign-in method.
-3. Enable **Firestore Database** in test mode.
+3. Enable **Realtime Database** in test mode.
 4. Replace the credentials in `src/config/firebaseConfig.ts`:
 
 ```typescript
@@ -236,7 +236,8 @@ export const FIREBASE_CONFIG = {
   projectId: "your-project-id",
   storageBucket: "your-project-id.appspot.com",
   messagingSenderId: "1234567890",
-  appId: "1:1234567890:web:abcdef123456",
+  appId: "1:1234567890:android:abcdef123456",
+  databaseURL: "https://your-project-id-default-rtdb.asia-southeast1.firebasedatabase.app",
 };
 ```
 
@@ -292,6 +293,5 @@ npm run ios
 - [x] **Haversine Save Logic**: WGS-84 great-circle formula; saves when $\ge 30\text{m}$, skips when $< 30\text{m}$.
 - [x] **Boundary Unit Tests**: Rigorously tested at $29.9\text{m}$ (skip), $30.0\text{m}$ (save), and $30.1\text{m}$ (save).
 - [x] **Offline Resilience**: Durable AsyncStorage queue, NetInfo auto-sync on reconnect, RFC4122 UUID idempotency, zero duplicate entries.
-- [x] **Home Screen Waypoint List**: Live Firestore `onSnapshot` listener, timestamp, lat/lng, distance from previous point, loading/empty/error states, pull-to-refresh.
+- [x] **Home Screen Waypoint List**: Live Realtime Database `onValue` listener, timestamp, lat/lng, distance from previous point, loading/empty/error states, pull-to-refresh.
 - [x] **No Paid SDKs**: Free of proprietary commercial licenses.
-# Delivery-Rider-App

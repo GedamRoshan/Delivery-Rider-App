@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "85256601097",
+    "project_id": "delivery-rider-app-415b7",
+    "storage_bucket": "delivery-rider-app-415b7.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:85256601097:android:3d6168cc12a624d33482d8",
+        "android_client_info": {
+          "package_name": "com.deliveryriderapp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCUEMXJi6p5pj_CBIaKI54L_2I1Yu5Sm2w"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

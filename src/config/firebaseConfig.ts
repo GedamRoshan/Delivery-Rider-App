@@ -15,15 +15,15 @@ const getReactNativePersistence = (FirebaseAuth as any).getReactNativePersistenc
  * Console: https://console.firebase.google.com -> Project Settings -> General -> Your apps
  */
 export const FIREBASE_CONFIG = {
-  apiKey: 'AIzaSyA_PLACEHOLDER_KEY_YOUR_PROJECT',
-  authDomain: 'delivery-rider-app-demo.firebaseapp.com',
-  projectId: 'delivery-rider-app-demo',
-  storageBucket: 'delivery-rider-app-demo.appspot.com',
-  messagingSenderId: '100000000000',
-  appId: '1:100000000000:web:abcdef1234567890abcdef',
+  apiKey: 'AIzaSyCUEMXJi6p5pj_CBIaKI54L_2I1Yu5Sm2w',
+  authDomain: 'delivery-rider-app-415b7.firebaseapp.com',
+  projectId: 'delivery-rider-app-415b7',
+  storageBucket: 'delivery-rider-app-415b7.firebasestorage.app',
+  messagingSenderId: '85256601097',
+  appId: '1:85256601097:android:3d6168cc12a624d33482d8',
 };
 
-// Check if credentials are still set to placeholder values
+// Check if credentials are set to placeholder values
 export const isUsingPlaceholderCredentials = (): boolean => {
   return (
     !FIREBASE_CONFIG.apiKey ||

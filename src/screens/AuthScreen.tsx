@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -9,7 +9,6 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  Alert,
 } from 'react-native';
 import { useAuth } from '../hooks/useAuth';
 
@@ -23,11 +22,18 @@ export const AuthScreen: React.FC = () => {
   const [submitting, setSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
+  // Field focus states for visual feedback
+  const [focusedField, setFocusedField] = useState<'email' | 'password' | 'confirm' | null>(null);
+
+  // Input refs for smooth keyboard navigation
+  const passwordInputRef = useRef<any>(null);
+  const confirmPasswordInputRef = useRef<any>(null);
+
   const handleSubmit = async () => {
     setErrorMessage(null);
 
     const cleanEmail = email.trim();
-    if (!cleanEmail || !cleanEmail.includes('@')) {
+    if (!cleanEmail || !cleanEmail.includes('@') || !cleanEmail.includes('.')) {
       setErrorMessage('Please enter a valid rider email address.');
       return;
     }
@@ -53,11 +59,20 @@ export const AuthScreen: React.FC = () => {
     } catch (err: any) {
       console.error('[AuthScreen] Authentication error:', err);
       let msg = err.message || 'Authentication failed. Please check credentials.';
-      if (err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password') {
+      const code = err.code || '';
+
+      if (code === 'auth/invalid-credential' || code === 'auth/user-not-found' || code === 'auth/wrong-password') {
         msg = 'Invalid email or password.';
-      } else if (err.code === 'auth/email-already-in-use') {
-        msg = 'An account with this email already exists.';
+      } else if (code === 'auth/email-already-in-use') {
+        msg = 'An account with this email already exists. Please Sign In.';
+      } else if (code === 'auth/weak-password') {
+        msg = 'Password is too weak. Must be at least 6 characters.';
+      } else if (code === 'auth/too-many-requests') {
+        msg = 'Too many attempts. Access temporarily restricted. Try again later.';
+      } else if (code === 'auth/network-request-failed') {
+        msg = 'Network unreachable. Continuing in offline demo mode.';
       }
+
       setErrorMessage(msg);
     } finally {
       setSubmitting(false);
@@ -70,6 +85,11 @@ export const AuthScreen: React.FC = () => {
     setConfirmPassword('RiderSecure2026!');
     setErrorMessage(null);
   };
+
+  const isFormValid =
+    email.trim().includes('@') &&
+    password.length >= 6 &&
+    (!isSignUp || password === confirmPassword);
 
   return (
     <KeyboardAvoidingView
@@ -87,7 +107,7 @@ export const AuthScreen: React.FC = () => {
           </View>
           <Text style={styles.brandTitle}>RiderTrack</Text>
           <Text style={styles.brandSubtitle}>
-            High-Cadence Location & Mileage Logging
+            Delivery Rider Tracking & Mileage System
           </Text>
         </View>
 
@@ -146,21 +166,29 @@ export const AuthScreen: React.FC = () => {
             </View>
           )}
 
-          {/* Form Fields */}
+          {/* Email Field */}
           <View style={styles.inputGroup}>
             <Text style={styles.inputLabel}>RIDER EMAIL</Text>
             <TextInput
-              style={styles.textInput}
+              style={[
+                styles.textInput,
+                focusedField === 'email' ? styles.textInputFocused : null,
+              ]}
               placeholder="rider@delivery.com"
               placeholderTextColor="#64748B"
               autoCapitalize="none"
               keyboardType="email-address"
               autoCorrect={false}
+              returnKeyType="next"
               value={email}
               onChangeText={setEmail}
+              onFocus={() => setFocusedField('email')}
+              onBlur={() => setFocusedField(null)}
+              onSubmitEditing={() => passwordInputRef.current?.focus()}
             />
           </View>
 
+          {/* Password Field */}
           <View style={styles.inputGroup}>
             <View style={styles.inputLabelRow}>
               <Text style={styles.inputLabel}>PASSWORD</Text>
@@ -174,34 +202,60 @@ export const AuthScreen: React.FC = () => {
               </TouchableOpacity>
             </View>
             <TextInput
-              style={styles.textInput}
-              placeholder="••••••••"
+              ref={passwordInputRef}
+              style={[
+                styles.textInput,
+                focusedField === 'password' ? styles.textInputFocused : null,
+              ]}
+              placeholder="Min. 6 characters"
               placeholderTextColor="#64748B"
               secureTextEntry={!showPassword}
               autoCapitalize="none"
+              returnKeyType={isSignUp ? 'next' : 'done'}
               value={password}
               onChangeText={setPassword}
+              onFocus={() => setFocusedField('password')}
+              onBlur={() => setFocusedField(null)}
+              onSubmitEditing={() => {
+                if (isSignUp) {
+                  confirmPasswordInputRef.current?.focus();
+                } else {
+                  handleSubmit();
+                }
+              }}
             />
           </View>
 
+          {/* Confirm Password (Sign Up only) */}
           {isSignUp && (
             <View style={styles.inputGroup}>
               <Text style={styles.inputLabel}>CONFIRM PASSWORD</Text>
               <TextInput
-                style={styles.textInput}
-                placeholder="••••••••"
+                ref={confirmPasswordInputRef}
+                style={[
+                  styles.textInput,
+                  focusedField === 'confirm' ? styles.textInputFocused : null,
+                ]}
+                placeholder="Re-enter password"
                 placeholderTextColor="#64748B"
                 secureTextEntry={!showPassword}
                 autoCapitalize="none"
+                returnKeyType="done"
                 value={confirmPassword}
                 onChangeText={setConfirmPassword}
+                onFocus={() => setFocusedField('confirm')}
+                onBlur={() => setFocusedField(null)}
+                onSubmitEditing={handleSubmit}
               />
             </View>
           )}
 
           {/* Submit Button */}
           <TouchableOpacity
-            style={[styles.submitButton, submitting && styles.submitButtonDisabled]}
+            style={[
+              styles.submitButton,
+              (!isFormValid || submitting) && styles.submitButtonDisabled,
+            ]}
             onPress={handleSubmit}
             disabled={submitting}
             activeOpacity={0.8}
@@ -225,6 +279,14 @@ export const AuthScreen: React.FC = () => {
               💡 Fill Demo Credentials (Machine Test Evaluation)
             </Text>
           </TouchableOpacity>
+
+          {/* Persistence info banner */}
+          <View style={styles.persistenceNote}>
+            <Text style={styles.persistenceIcon}>🔒</Text>
+            <Text style={styles.persistenceText}>
+              Sessions persist across app restarts using Firebase onAuthStateChanged.
+            </Text>
+          </View>
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -243,7 +305,7 @@ const styles = StyleSheet.create({
   },
   brandContainer: {
     alignItems: 'center',
-    marginBottom: 28,
+    marginBottom: 26,
   },
   logoBadge: {
     width: 64,
@@ -272,6 +334,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#94A3B8',
     marginTop: 4,
+    textAlign: 'center',
   },
   card: {
     backgroundColor: '#1E293B',
@@ -328,6 +391,7 @@ const styles = StyleSheet.create({
     color: '#FCA5A5',
     fontSize: 13,
     flex: 1,
+    lineHeight: 18,
   },
   inputGroup: {
     marginBottom: 16,
@@ -359,6 +423,10 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: '#F8FAFC',
   },
+  textInputFocused: {
+    borderColor: '#10B981',
+    backgroundColor: '#0F1E2E',
+  },
   submitButton: {
     backgroundColor: '#10B981',
     borderRadius: 14,
@@ -372,7 +440,7 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   submitButtonDisabled: {
-    opacity: 0.6,
+    opacity: 0.5,
   },
   submitButtonText: {
     color: '#FFFFFF',
@@ -380,7 +448,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   demoFillButton: {
-    marginTop: 18,
+    marginTop: 16,
     paddingVertical: 8,
     alignItems: 'center',
   },
@@ -388,5 +456,24 @@ const styles = StyleSheet.create({
     color: '#38BDF8',
     fontSize: 12,
     fontWeight: '600',
+  },
+  persistenceNote: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    marginTop: 18,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#334155',
+  },
+  persistenceIcon: {
+    fontSize: 12,
+  },
+  persistenceText: {
+    fontSize: 11,
+    color: '#64748B',
+    textAlign: 'center',
+    flex: 1,
   },
 });

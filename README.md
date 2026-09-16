@@ -1,6 +1,5 @@
 # Delivery Rider App (React Native & TypeScript)
-> **Senior-Level Machine Test Submission (4+ Years Experience)**  
-> High-Cadence Background Location Tracking • 30-Meter Haversine Threshold • Offline-First Resilient Sync Queue • Firebase Auth & Real-Time Firestore • 100% Open-Source Stack
+> High-Cadence Background Location Tracking • 30-Meter Haversine Threshold • Offline-First Resilient Sync Queue • Firebase Auth & Realtime Database
 
 ---
 

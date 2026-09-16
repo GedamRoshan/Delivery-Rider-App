@@ -21,9 +21,6 @@ function getAndroidApiLevel(): number {
 }
 
 export class PermissionService {
-  /**
-   * Checks current permission status without prompting the OS dialog.
-   */
   public static async checkPermissions(): Promise<LocationPermissionState> {
     if (Platform.OS === 'android') {
       const fine = await PermissionsAndroid.check(
@@ -40,7 +37,6 @@ export class PermissionService {
           PermissionsAndroid.PERMISSIONS.ACCESS_BACKGROUND_LOCATION
         );
       } else {
-        // Android 9 and below grants background location automatically if foreground is granted
         background = foreground;
       }
 
@@ -50,18 +46,13 @@ export class PermissionService {
         canAskAgain: true,
       };
     } else {
-      // iOS
       return new Promise(resolve => {
-        // Geolocation provides authorization status check
-        // By default, check if we can query position
         Geolocation.getCurrentPosition(
           () => resolve({ hasForeground: true, hasBackground: true, canAskAgain: true }),
           err => {
             if (err.code === 1) {
-              // PERMISSION_DENIED
               resolve({ hasForeground: false, hasBackground: false, canAskAgain: true });
             } else {
-              // Timeout or position unavailable, but permission might be granted
               resolve({ hasForeground: true, hasBackground: true, canAskAgain: true });
             }
           },
@@ -71,12 +62,6 @@ export class PermissionService {
     }
   }
 
-  /**
-   * Requests location permissions sequentially following Android & iOS guidelines:
-   * 1. Foreground location (FINE + COARSE)
-   * 2. Background location (ACCESS_BACKGROUND_LOCATION on Android 10+ / Always on iOS)
-   * 3. Notification permission (Android 13+ for foreground service notification)
-   */
   public static async requestPermissions(
     showExplanationPrompt: boolean = true
   ): Promise<LocationPermissionState> {
@@ -90,7 +75,6 @@ export class PermissionService {
   private static async requestAndroidPermissions(
     showExplanation: boolean
   ): Promise<LocationPermissionState> {
-    // 1. Request Foreground Permissions first
     const foregroundResult = await PermissionsAndroid.requestMultiple([
       PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
       PermissionsAndroid.PERMISSIONS.ACCESS_COARSE_LOCATION,
@@ -116,22 +100,18 @@ export class PermissionService {
       };
     }
 
-    // 2. Request Notification Permission for Android 13+ (API 33+)
-    // Required to show persistent Foreground Service notification
     if (getAndroidApiLevel() >= 33) {
       try {
         await PermissionsAndroid.request(
           'android.permission.POST_NOTIFICATIONS' as any
         );
       } catch (e) {
-        console.warn('[PermissionService] POST_NOTIFICATIONS request error:', e);
+        console.warn('[PermissionService] POST_NOTIFICATIONS error:', e);
       }
     }
 
-    // 3. Request Background Permission on Android 10+ (API 29+)
     let hasBackground = false;
     if (getAndroidApiLevel() >= 29) {
-      // Android 11+ requires requesting background permission separately from foreground
       const bgResult = await PermissionsAndroid.request(
         PermissionsAndroid.PERMISSIONS.ACCESS_BACKGROUND_LOCATION
       );
@@ -149,10 +129,8 @@ export class PermissionService {
 
   private static async requestIOSPermissions(): Promise<LocationPermissionState> {
     return new Promise(resolve => {
-      // First request when-in-use
       Geolocation.requestAuthorization(
         () => {
-          // If granted, request always authorization
           resolve({
             hasForeground: true,
             hasBackground: true,
@@ -171,9 +149,6 @@ export class PermissionService {
     });
   }
 
-  /**
-   * Prompts user with explanation and directs them to system settings
-   */
   public static openSettingsAlert(
     title: string = 'Location Permission Required',
     message: string = 'Delivery Rider App requires background location access to track delivery routes while On Duty. Please enable "Allow all the time" in Settings.'

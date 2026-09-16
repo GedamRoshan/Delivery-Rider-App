@@ -67,7 +67,6 @@ export const SignupScreen: React.FC<SignupScreenProps> = ({
 
     try {
       await AuthService.signup(email.trim(), password);
-      // Upon successful creation, Firebase triggers onAuthStateChanged which moves to HomeScreen
     } catch (err: any) {
       console.error('[SignupScreen] Signup error:', err);
       const friendlyMsg = AuthService.getFriendlyErrorMessage(err);
@@ -86,7 +85,6 @@ export const SignupScreen: React.FC<SignupScreenProps> = ({
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
       >
-        {/* Branding Header */}
         <View style={styles.brandContainer}>
           <View style={styles.logoBadge}>
             <Text style={styles.logoIcon}>⚡</Text>
@@ -97,14 +95,12 @@ export const SignupScreen: React.FC<SignupScreenProps> = ({
           </Text>
         </View>
 
-        {/* Card */}
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Register Rider</Text>
           <Text style={styles.cardSubtitle}>
             Sign up with your delivery rider email
           </Text>
 
-          {/* Error Banner */}
           {errorMessage && (
             <View style={styles.errorBanner}>
               <Text style={styles.errorIcon}>⚠️</Text>
@@ -112,7 +108,6 @@ export const SignupScreen: React.FC<SignupScreenProps> = ({
             </View>
           )}
 
-          {/* Email Input */}
           <View style={styles.inputGroup}>
             <Text style={styles.inputLabel}>EMAIL ADDRESS</Text>
             <TextInput
@@ -137,7 +132,6 @@ export const SignupScreen: React.FC<SignupScreenProps> = ({
             />
           </View>
 
-          {/* Password Input */}
           <View style={styles.inputGroup}>
             <View style={styles.inputLabelRow}>
               <Text style={styles.inputLabel}>PASSWORD (MIN. 6 CHARACTERS)</Text>
@@ -172,7 +166,6 @@ export const SignupScreen: React.FC<SignupScreenProps> = ({
             />
           </View>
 
-          {/* Confirm Password Input */}
           <View style={styles.inputGroup}>
             <Text style={styles.inputLabel}>CONFIRM PASSWORD</Text>
             <TextInput
@@ -197,7 +190,6 @@ export const SignupScreen: React.FC<SignupScreenProps> = ({
             />
           </View>
 
-          {/* Create Account Button */}
           <TouchableOpacity
             style={[
               styles.signupButton,
@@ -214,7 +206,6 @@ export const SignupScreen: React.FC<SignupScreenProps> = ({
             )}
           </TouchableOpacity>
 
-          {/* Back to Login Link */}
           <View style={styles.footerRow}>
             <Text style={styles.footerText}>Already have an account?</Text>
             <TouchableOpacity

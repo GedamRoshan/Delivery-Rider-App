@@ -8,13 +8,6 @@ type Auth = FirebaseAuth.Auth;
 const { initializeAuth } = FirebaseAuth;
 const getReactNativePersistence = (FirebaseAuth as any).getReactNativePersistence;
 
-/**
- * Firebase Project Configuration
- *
- * In production, these should be supplied via environment variables (e.g. react-native-config or .env)
- * Replace placeholder values below with your Firebase Console credentials:
- * Console: https://console.firebase.google.com -> Project Settings -> General -> Your apps
- */
 export const FIREBASE_CONFIG = {
   apiKey: 'AIzaSyCUEMXJi6p5pj_CBIaKI54L_2I1Yu5Sm2w',
   authDomain: 'delivery-rider-app-415b7.firebaseapp.com',
@@ -25,7 +18,6 @@ export const FIREBASE_CONFIG = {
   databaseURL: 'https://delivery-rider-app-415b7-default-rtdb.asia-southeast1.firebasedatabase.app',
 };
 
-// Check if credentials are set to placeholder values
 export const isUsingPlaceholderCredentials = (): boolean => {
   return (
     !FIREBASE_CONFIG.apiKey ||
@@ -42,7 +34,6 @@ let rtdb: Database;
 try {
   if (getApps().length === 0) {
     app = initializeApp(FIREBASE_CONFIG);
-    // Use React Native AsyncStorage persistence for auth sessions across restarts
     auth = initializeAuth(app, {
       persistence: getReactNativePersistence(AsyncStorage),
     });
@@ -55,14 +46,12 @@ try {
   rtdb = getDatabase(app);
 } catch (error) {
   console.warn('[FirebaseConfig] Initialization warning:', error);
-  // Fallback safe initialization if already initialized
   app = getApps().length > 0 ? getApp() : initializeApp(FIREBASE_CONFIG);
   try {
     auth = initializeAuth(app, {
       persistence: getReactNativePersistence(AsyncStorage),
     });
   } catch {
-    // If already initialized
     // @ts-ignore
     auth = (app as any).auth;
   }

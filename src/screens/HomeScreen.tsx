@@ -43,7 +43,6 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ user, onLogout }) => {
   const [showPermissionModal, setShowPermissionModal] = useState(false);
   const [hasBackgroundPermission, setHasBackgroundPermission] = useState(true);
 
-  // Check background permission on mount and when on-duty
   useEffect(() => {
     PermissionService.checkPermissions().then(status => {
       setHasBackgroundPermission(status.hasBackground);
@@ -51,18 +50,11 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ user, onLogout }) => {
   }, [isOnDuty]);
 
   const handleDutyToggle = async (val: boolean) => {
-    console.log(`\n🔄 [HomeScreen] Rider clicked Duty switch -> ${val ? 'ON DUTY' : 'OFF DUTY'}`);
     if (val) {
-      // Check permissions first; if foreground not granted, show modal
       const status = await PermissionService.checkPermissions();
-      console.log('🛡️ [HomeScreen] Current Permission status:', status);
       if (!status.hasForeground) {
-        console.log('⚠️ [HomeScreen] Foreground location permission missing, showing modal.');
         setShowPermissionModal(true);
         return;
-      }
-      if (!status.hasBackground) {
-        console.warn('⚠️ [HomeScreen] Background location not granted yet ("Allow all the time"). Tracking will run in foreground.');
       }
     }
     toggleDuty(val);
@@ -105,14 +97,12 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ user, onLogout }) => {
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" />
 
-      {/* Permission Educational Rationale Modal */}
       <PermissionModal
         visible={showPermissionModal}
         onGrant={handleGrantPermissionFromModal}
         onDismiss={() => setShowPermissionModal(false)}
       />
 
-      {/* Top Header */}
       <View style={styles.header}>
         <View style={styles.headerLeft}>
           <View style={styles.avatarPill}>
@@ -127,7 +117,6 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ user, onLogout }) => {
         </View>
 
         <View style={styles.headerRight}>
-          {/* Online/Offline Status Badge */}
           <View
             style={[
               styles.networkBadge,
@@ -150,7 +139,6 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ user, onLogout }) => {
             </Text>
           </View>
 
-          {/* Logout Button */}
           <TouchableOpacity
             style={styles.logoutButton}
             onPress={confirmLogout}
@@ -161,7 +149,6 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ user, onLogout }) => {
         </View>
       </View>
 
-      {/* Main Content List */}
       <FlatList
         data={logs}
         keyExtractor={item => item.id}
@@ -177,7 +164,6 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ user, onLogout }) => {
         }
         ListHeaderComponent={
           <View>
-            {/* Background Permission Notice Banner (if missing) */}
             {!hasBackgroundPermission && (
               <TouchableOpacity
                 style={styles.permissionWarningCard}
@@ -196,7 +182,6 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ user, onLogout }) => {
               </TouchableOpacity>
             )}
 
-            {/* Duty Toggle Card */}
             <View
               style={[
                 styles.dutyCard,
@@ -232,7 +217,6 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ user, onLogout }) => {
               </View>
             </View>
 
-            {/* Live Telemetry Card */}
             <LocationCard
               metrics={metrics}
               isOnDuty={isOnDuty}
@@ -241,7 +225,6 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ user, onLogout }) => {
               onFlush={flushNow}
             />
 
-            {/* Section Header */}
             <View style={styles.feedHeader}>
               <View style={styles.feedTitleRow}>
                 <Text style={styles.feedTitle}>Saved Location Logs</Text>
@@ -254,7 +237,6 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ user, onLogout }) => {
               </Text>
             </View>
 
-            {/* Error Banner */}
             {error && (
               <View style={styles.errorBox}>
                 <Text style={styles.errorText}>Sync notice: {error}</Text>

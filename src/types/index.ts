@@ -1,7 +1,3 @@
-/**
- * Core domain types for Delivery Rider App
- */
-
 export interface Coordinates {
   latitude: number;
   longitude: number;
@@ -16,14 +12,14 @@ export interface LocationPoint extends Coordinates {
 }
 
 export interface LocationLogEntry {
-  id: string; // Unique idempotency key (UUID v4)
+  id: string;
   riderId: string;
   latitude: number;
   longitude: number;
-  timestamp: number; // UTC Epoch timestamp in milliseconds
-  distanceMoved: number; // Great-circle distance (meters) from previous saved point
+  timestamp: number;
+  distanceMoved: number;
   accuracy?: number;
-  synced?: boolean; // True if confirmed in Firestore, false if in local offline queue
+  synced?: boolean;
 }
 
 export interface RiderUser {

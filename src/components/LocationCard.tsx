@@ -34,7 +34,6 @@ export const LocationCard: React.FC<LocationCardProps> = ({
 
   return (
     <View style={styles.container}>
-      {/* Offline Queue Notice Banner */}
       {pendingCount > 0 && (
         <View style={styles.offlineBanner}>
           <View style={styles.offlineLeft}>
@@ -62,7 +61,6 @@ export const LocationCard: React.FC<LocationCardProps> = ({
         </View>
       )}
 
-      {/* Header with Telemetry Status */}
       <View style={styles.header}>
         <View>
           <Text style={styles.sectionLabel}>LIVE TELEMETRY</Text>
@@ -93,7 +91,6 @@ export const LocationCard: React.FC<LocationCardProps> = ({
         </View>
       </View>
 
-      {/* GPS Coordinate Display */}
       <View style={styles.coordsBox}>
         <Text style={styles.coordsLabel}>CURRENT FIX COORDINATES</Text>
         <Text style={styles.coordsValue}>
@@ -110,7 +107,6 @@ export const LocationCard: React.FC<LocationCardProps> = ({
         )}
       </View>
 
-      {/* Threshold & Distance Delta Card */}
       <View style={styles.deltaRow}>
         <View style={styles.deltaBox}>
           <Text style={styles.statLabel}>LAST DELTA (≥30m RULE)</Text>
@@ -146,7 +142,6 @@ export const LocationCard: React.FC<LocationCardProps> = ({
         </View>
       </View>
 
-      {/* Metrics Row: Total Distance & Total Saved Points */}
       <View style={styles.statsGrid}>
         <View style={styles.statItem}>
           <Text style={styles.statLabel}>TOTAL DISTANCE</Text>

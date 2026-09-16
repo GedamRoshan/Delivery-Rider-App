@@ -9,16 +9,9 @@ import {
 } from '@react-native-firebase/auth';
 import { RiderUser } from '../types';
 
-/**
- * Returns the native @react-native-firebase/auth instance
- */
 export const getFirebaseAuth = (): Auth => getAuth();
 
 export class AuthService {
-  /**
-   * Subscribes to Firebase auth state changes.
-   * Session persists across app restarts using Firebase's native auth listener.
-   */
   public static subscribeToAuthState(
     callback: (user: RiderUser | null) => void
   ): () => void {
@@ -44,16 +37,12 @@ export class AuthService {
     return unsubscribe;
   }
 
-  // Alias for backward compatibility
   public static subscribeAuthState(
     callback: (user: RiderUser | null) => void
   ): () => void {
     return this.subscribeToAuthState(callback);
   }
 
-  /**
-   * Log in with Email & Password using @react-native-firebase/auth
-   */
   public static async login(
     email: string,
     pass: string
@@ -72,9 +61,6 @@ export class AuthService {
     };
   }
 
-  /**
-   * Sign up with Email & Password using @react-native-firebase/auth
-   */
   public static async signup(
     email: string,
     pass: string
@@ -93,7 +79,6 @@ export class AuthService {
     };
   }
 
-  // Alias for signup
   public static async signUp(
     email: string,
     pass: string
@@ -101,17 +86,11 @@ export class AuthService {
     return this.signup(email, pass);
   }
 
-  /**
-   * Log out current rider using @react-native-firebase/auth signOut
-   */
   public static async logout(): Promise<void> {
     const authInstance = getAuth();
     await signOut(authInstance);
   }
 
-  /**
-   * Get current authenticated user
-   */
   public static getCurrentUser(): RiderUser | null {
     try {
       const authInstance = getAuth();
@@ -122,15 +101,10 @@ export class AuthService {
           email: user.email,
         };
       }
-    } catch {
-      // If auth not yet initialized
-    }
+    } catch {}
     return null;
   }
 
-  /**
-   * Helper to map Firebase Auth error codes to user-friendly messages
-   */
   public static getFriendlyErrorMessage(error: any): string {
     if (!error) return 'An unexpected error occurred. Please try again.';
 

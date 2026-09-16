@@ -53,7 +53,7 @@ jest.mock('firebase/firestore', () => ({
 }));
 
 jest.mock('../src/config/firebaseConfig', () => ({
-  isUsingPlaceholderCredentials: () => true, // Reviewer / Mock mode
+  isUsingPlaceholderCredentials: () => true,
   db: {},
 }));
 

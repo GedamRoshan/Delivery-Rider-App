@@ -30,9 +30,7 @@ describe('Haversine Distance & Distance-Threshold Logic', () => {
     });
   });
 
-  describe('30-Meter Boundary Threshold Tests (Senior Machine Test Requirement)', () => {
-    // Coordinate anchor: Origin (0, 0)
-    // 1 meter north corresponds to (1 / EARTH_RADIUS_METERS) * (180 / Math.PI) degrees latitude
+  describe('30-Meter Boundary Threshold Tests', () => {
     const degPerMeterLat = (1 / EARTH_RADIUS_METERS) * (180 / Math.PI);
     const anchor = { latitude: 12.9715987, longitude: 77.5945627 };
 

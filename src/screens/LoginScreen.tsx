@@ -57,7 +57,6 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
 
     try {
       await AuthService.login(email.trim(), password);
-      // Upon success, auth().onAuthStateChanged in useAuth / App automatically navigates to HomeScreen
     } catch (err: any) {
       console.error('[LoginScreen] Login error:', err);
       const friendlyMsg = AuthService.getFriendlyErrorMessage(err);
@@ -76,7 +75,6 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
       >
-        {/* Branding Header */}
         <View style={styles.brandContainer}>
           <View style={styles.logoBadge}>
             <Text style={styles.logoIcon}>⚡</Text>
@@ -87,14 +85,12 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
           </Text>
         </View>
 
-        {/* Card */}
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Welcome Back</Text>
           <Text style={styles.cardSubtitle}>
             Sign in to start your delivery shift
           </Text>
 
-          {/* Error Banner */}
           {errorMessage && (
             <View style={styles.errorBanner}>
               <Text style={styles.errorIcon}>⚠️</Text>
@@ -102,7 +98,6 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
             </View>
           )}
 
-          {/* Email Input */}
           <View style={styles.inputGroup}>
             <Text style={styles.inputLabel}>EMAIL ADDRESS</Text>
             <TextInput
@@ -127,7 +122,6 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
             />
           </View>
 
-          {/* Password Input */}
           <View style={styles.inputGroup}>
             <View style={styles.inputLabelRow}>
               <Text style={styles.inputLabel}>PASSWORD</Text>
@@ -162,7 +156,6 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
             />
           </View>
 
-          {/* Login Button */}
           <TouchableOpacity
             style={[
               styles.loginButton,
@@ -179,7 +172,6 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
             )}
           </TouchableOpacity>
 
-          {/* Create Account Link */}
           <View style={styles.footerRow}>
             <Text style={styles.footerText}>Don't have a rider account?</Text>
             <TouchableOpacity
@@ -191,7 +183,6 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
             </TouchableOpacity>
           </View>
 
-          {/* Persistence Note */}
           <View style={styles.persistenceNote}>
             <Text style={styles.persistenceIcon}>🔒</Text>
             <Text style={styles.persistenceText}>
